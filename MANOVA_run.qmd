@@ -1,0 +1,341 @@
+---
+title: "Group 1 Project "
+format: 
+  pdf:
+    mathspec: true
+highlight-style: github
+code-block-bg: true
+code-block-border-left: "#31BAE9"
+header-includes: 
+- \newcommand{\bi}{\begin{itemize}}
+- \newcommand{\ei}{\end{itemize}}
+- \newcommand{\iset}{\setlength\itemsep{1em}}
+- \usepackage{amsbsy}
+- \usepackage{hyperref}
+- \newcommand{\blue}[1]{\textcolor{blue}{#1}}
+- \newcommand{\red}[1]{\textcolor{red}{#1}}
+---
+
+## Using MANOVA
+
+### Loading the Dataset and Checking Assumptions
+
+```{r}
+library(readr)
+Autoimmune_Disorder_Dataset <- read_csv("Autoimmune_Disorder_10k_with_All_Disorders.csv")
+#Checking the amoung of diagnosis, got 116 different diagnosis
+library(dplyr)
+amount_of_diagnosis = data.frame(Autoimmune_Disorder_Dataset %>% count(Autoimmune_Disorder_Dataset$Diagnosis))
+
+```
+
+```{r}
+# ============================================================================
+# GROUPING 116 AUTOIMMUNE DIAGNOSES INTO 8 CLINICAL CATEGORIES
+# ============================================================================
+
+library(dplyr)
+
+# Create a new variable for grouped diagnosis
+Autoimmune_Disorder_Dataset_Grouped <- Autoimmune_Disorder_Dataset %>%
+  mutate(Diagnosis_Group = case_when(
+    
+    # 1. NORMAL/CONTROL GROUP
+    Diagnosis == "Normal" ~ "Normal",
+    
+    # 2. RHEUMATOLOGICAL DISORDERS (joint/connective tissue)
+    Diagnosis %in% c("Rheumatoid arthritis", 
+                     "Systemic Lupus Erythematosus",
+                     "Sjögren syndrome",
+                     "Scleroderma (systemic sclerosis)",
+                     "Polymyalgia rheumatica",
+                     "Polymyositis",
+                     "Dermatomyositis",
+                     "Myositis",
+                     "Inclusion body myositis",
+                     "Fibromyalgia",
+                     "Undifferentiated connective tissue disease (UCTD)",
+                     "Discoid lupus erythematosus",
+                     "Lupus nephritis",
+                     "Lupus vasculitis",
+                     "Rheumatoid lung disease",
+                     "Rheumatoid vasculitis") ~ "Rheumatological",
+    
+    # 3. NEUROLOGICAL DISORDERS
+    Diagnosis %in% c("Multiple sclerosis",
+                     "Myasthenia gravis",
+                     "Guillain-Barré syndrome",
+                     "Neuromyelitis optica",
+                     "Neuromyelitis optica (Devic's disease)/NMOSD",
+                     "Chronic inflammatory demyelinating polyneuropathy",
+                     "Lambert–Eaton myasthenic syndrome",
+                     "Autoimmune encephalitis",
+                     "Anti-NMDA receptor encephalitis",
+                     "Hashimoto's encephalopathy",
+                     "Acute disseminated encephalomyelitis",
+                     "Balo concentric sclerosis",
+                     "Idiopathic inflammatory demyelinating diseases",
+                     "Bickerstaff's encephalitis",
+                     "Optic neuritis",
+                     "Transverse myelitis",
+                     "Acute motor axonal neuropathy",
+                     "Stiff-person syndrome",
+                     "Neuromyotonia",
+                     "Paraneoplastic cerebellar degeneration",
+                     "Opsoclonus myoclonus syndrome",
+                     "Sydenham's chorea",
+                     "Restless legs syndrome") ~ "Neurological",
+    
+    # 4. ENDOCRINE/METABOLIC DISORDERS
+    Diagnosis %in% c("Graves' disease",
+                     "Hashimoto's thyroiditis",
+                     "Ord's thyroiditis",
+                     "Graves' ophthalmopathy",
+                     "Diabetes mellitus type 1",
+                     "Addison's disease",
+                     "Autoimmune polyendocrine syndrome type 1 (APS1)",
+                     "Autoimmune polyendocrine syndrome type 2 (APS2)",
+                     "Autoimmune polyendocrine syndrome type 3 (APS3)",
+                     "Autoimmune oophoritis",
+                     "Autoimmune orchitis",
+                     "Premature ovarian failure",
+                     "Autoimmune progesterone dermatitis") ~ "Endocrine",
+    
+    # 5. GASTROINTESTINAL DISORDERS
+    Diagnosis %in% c("Crohn's disease",
+                     "Ulcerative colitis",
+                     "Celiac disease",
+                     "Autoimmune hepatitis",
+                     "Primary sclerosing cholangitis",
+                     "Autoimmune pancreatitis",
+                     "Autoimmune enteropathy",
+                     "Pernicious anemia") ~ "Gastrointestinal",
+    
+    # 6. DERMATOLOGICAL DISORDERS (skin)
+    Diagnosis %in% c("Psoriasis",
+                     "Vitiligo",
+                     "Alopecia areata",
+                     "Pemphigus vulgaris",
+                     "Bullous pemphigoid",
+                     "Cicatricial pemphigoid",
+                     "Gestational pemphigoid",
+                     "Dermatitis herpetiformis",
+                     "Epidermolysis bullosa acquisita",
+                     "Linear IgA disease",
+                     "Lichen planus",
+                     "Lichen sclerosus",
+                     "Morphea",
+                     "Hidradenitis suppurativa",
+                     "Erythema nodosum",
+                     "Autoimmune urticaria",
+                     "Urticarial vasculitis") ~ "Dermatological",
+    
+    # 7. VASCULITIS & VASCULAR DISORDERS
+    Diagnosis %in% c("Behçet's disease",
+                     "Giant cell arteritis",
+                     "Takayasu's arteritis",
+                     "Granulomatosis with polyangiitis (GPA)",
+                     "Eosinophilic granulomatosis with polyangiitis (EGPA)",
+                     "Microscopic polyangiitis (MPA)",
+                     "Polyarteritis nodosa (PAN)",
+                     "IgA vasculitis (IgAV)",
+                     "Leukocytoclastic vasculitis",
+                     "Vasculitis",
+                     "Kawasaki disease",
+                     "Antiphospholipid syndrome",
+                     "Rheumatic heart disease") ~ "Vasculitis",
+    
+    # 8. HEMATOLOGICAL & OTHER ORGAN-SPECIFIC DISORDERS
+    Diagnosis %in% c("Autoimmune hemolytic anemia",
+                     "Immune thrombocytopenia",
+                     "Thrombotic thrombocytopenic purpura",
+                     "Paroxysmal nocturnal hemoglobinuria",
+                     "Goodpasture syndrome",
+                     "IgA nephropathy",
+                     "Membranous nephropathy",
+                     "Interstitial nephritis",
+                     "Idiopathic pulmonary fibrosis",
+                     "Interstitial lung disease",
+                     "Pulmonary alveolar proteinosis",
+                     "Sarcoidosis",
+                     "Autoimmune uveitis",
+                     "Intermediate uveitis",
+                     "Autoimmune retinopathy",
+                     "Sympathetic ophthalmia",
+                     "Mooren's ulcer",
+                     "Scleritis",
+                     "Ligneous conjunctivitis",
+                     "Cogan syndrome",
+                     "Susac's syndrome",
+                     "Tolosa–Hunt syndrome",
+                     "Interstitial cystitis",
+                     "Endometriosis",
+                     "Autoimmune angioedema") ~ "Hematological_OrganSpecific",
+    
+    # Catch any that might have been missed
+    TRUE ~ "Other"
+  ))
+
+
+# Show sample sizes for each group
+cat("\n\nSample sizes by diagnostic group:\n")
+print(table(Autoimmune_Disorder_Dataset_Grouped$Diagnosis_Group))
+
+Autoimmune_Disorder_Subset = data.frame(
+    Diagnosis_Group = Autoimmune_Disorder_Dataset_Grouped$Diagnosis_Group, 
+    RBC_Count = Autoimmune_Disorder_Dataset$RBC_Count, 
+    Hemoglobin = Autoimmune_Disorder_Dataset$Hemoglobin, 
+    Hematocrit = Autoimmune_Disorder_Dataset$Hematocrit, 
+    MCV = Autoimmune_Disorder_Dataset$MCV, 
+    MCH = Autoimmune_Disorder_Dataset$MCH, 
+    WBC_Count = Autoimmune_Disorder_Dataset$WBC_Count, 
+    PLT_Count = Autoimmune_Disorder_Dataset$PLT_Count)
+#write.csv(Autoimmune_Disorder_Subset, "Autoimmune_Disorder_Subset.csv", row.names = FALSE)
+
+```
+
+```{r}
+library(readr)
+
+Autoimmune_Disorder_Subset <- na.omit(Autoimmune_Disorder_Subset)
+#Checking MANOVA assumptions
+#CHECKING MULTIVARIATE NORMALITY ASSUMPTION
+library(MVN)
+
+autoimmune.mvn = mvn(Autoimmune_Disorder_Subset, subset = "Diagnosis_Group")
+summary(autoimmune.mvn,select = "mvn")
+
+#CHECKING HOMOGENEITY OF COVARIANCE MATRICES
+library(biotools)
+boxM(cbind(Autoimmune_Disorder_Subset$RBC_Count,
+           Autoimmune_Disorder_Subset$Hemoglobin,
+           Autoimmune_Disorder_Subset$Hematocrit,
+           Autoimmune_Disorder_Subset$MCV,
+           Autoimmune_Disorder_Subset$MCH,
+           Autoimmune_Disorder_Subset$WBC_Count,
+           Autoimmune_Disorder_Subset$PLT_Count),
+     Autoimmune_Disorder_Subset$Diagnosis_Group)
+
+blood_vars <- c("RBC_Count", "Hemoglobin", "Hematocrit", 
+                "MCV", "MCH", "WBC_Count", "PLT_Count")
+
+cor_matrix <- cor(Autoimmune_Disorder_Subset[, blood_vars])
+print(round(cor_matrix, 3))
+
+
+```
+
+The dataset contained 116 different diagnosis with some groups containing less than 116 samples making MANOVA unusable. Therefore, the dataset was simplified into 8 categories based on their diagnosis. Assumptions are first ran, with independence of observations being satisfied, as each patient represented a single observation. After running these blocks of code, the dataset does not follow the usual MANOVA assumptions of multivariate normality and homogeneity of variance matrices. However, with over 12,000 samples and between 646-2500 for each of the 8 groups, MANOVA is robust to these violations and testing can still be done.
+
+### MANOVA Testing
+
+```{r}
+Autoimmune_Disorder_Subset$Diagnosis_Group <- as.factor(Autoimmune_Disorder_Subset$Diagnosis_Group )
+autoimmune_manova <- manova(cbind(RBC_Count,
+           Hemoglobin,
+           Hematocrit,
+           MCV,
+           MCH,
+           WBC_Count,
+           PLT_Count) ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset)
+summary(autoimmune_manova, test = "Wilks")
+```
+
+After running the MANOVA test we will reject the null hypothesis where at least one diagnosis group's mean vector significantly differs from it at least one of the blood profiles.
+
+### Univariate ANOVAs
+
+```{r}
+# Run ANOVAs
+fit.RBC_Count <- anova(lm(RBC_Count ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset))
+fit.Hemoglobin <- anova(lm(Hemoglobin ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset))
+fit.Hematocrit <- anova(lm(Hematocrit ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset))
+fit.MCV <- anova(lm(MCV ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset))
+fit.MCH <- anova(lm(MCH ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset))
+fit.WBC_Count <- anova(lm(WBC_Count ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset))
+fit.PLT_Count <- anova(lm(PLT_Count ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset))
+
+# Extract p-values
+p.values <- c(
+  fit.RBC_Count$`Pr(>F)`[1],
+  fit.Hemoglobin$`Pr(>F)`[1],
+  fit.Hematocrit$`Pr(>F)`[1],
+  fit.MCV$`Pr(>F)`[1],
+  fit.MCH$`Pr(>F)`[1],
+  fit.WBC_Count$`Pr(>F)`[1],
+  fit.PLT_Count$`Pr(>F)`[1]
+)
+
+names(p.values) <- c("RBC_Count", "Hemoglobin", "Hematocrit", 
+                     "MCV", "MCH", "WBC_Count", "PLT_Count")
+
+# Bonferroni correction for 7 tests
+bonferroni_alpha <- 0.05 / 7  # = 0.00714
+
+adjusted_p <- p.adjust(p.values, method = "bonferroni")
+
+results_table <- data.frame(
+  Original_p = p.values,
+  Bonferroni_p = adjusted_p,
+  Significant = ifelse(adjusted_p < 0.05, "Yes***", "No")
+)
+
+print(results_table)
+```
+
+After Bonferroni correction $(\alpha = 0.05/7 = 0.00714)$, only 3 out of 7 blood variables showed significant differences across diagnostic groups (RBC_Count, Hemoglobin, and Hematocrit). Therefore, the conclusion is that the mean in each of these 3 variables varies significantly in at least one of the eight groups.
+
+```{r}
+
+library(ggplot2)
+library(gridExtra)
+#COMPUTING GROUP MEANS
+aggregate(RBC_Count ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset, mean)
+aggregate(Hemoglobin ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset, mean)
+aggregate(Hematocrit ~ Diagnosis_Group, data = Autoimmune_Disorder_Subset, mean)
+
+#USING BOXPLOTS
+# Boxplot 1: RBC_Count
+plot_rbc <- ggplot(Autoimmune_Disorder_Subset, 
+                   aes(x = Diagnosis_Group, y = RBC_Count, fill = Diagnosis_Group)) +
+  geom_boxplot() +
+  labs(title = "RBC Count by Diagnostic Group",
+       x = "Diagnostic Group",
+       y = "RBC Count (million cells/μL)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+# Boxplot 2: Hemoglobin
+plot_hgb <- ggplot(Autoimmune_Disorder_Subset, 
+                   aes(x = Diagnosis_Group, y = Hemoglobin, fill = Diagnosis_Group)) +
+  geom_boxplot() +
+  labs(title = "Hemoglobin by Diagnostic Group",
+       x = "Diagnostic Group",
+       y = "Hemoglobin (g/dL)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+# Boxplot 3: Hematocrit
+plot_hct <- ggplot(Autoimmune_Disorder_Subset, 
+                   aes(x = Diagnosis_Group, y = Hematocrit, fill = Diagnosis_Group)) +
+  geom_boxplot() +
+  labs(title = "Hematocrit by Diagnostic Group",
+       x = "Diagnostic Group",
+       y = "Hematocrit (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+# Display plots
+print(plot_rbc)
+print(plot_hgb)
+print(plot_hct)
+```
+
+From looking at the boxplots, Normal varies significantly from the other variables showing higher levels of RBC counts, Hemoglobin, and Hematocrit compared to all of the other autoimmune diseases.
+
+## Are there significant differences in the multivariate means of key clinical metrics between patients with different autoimmune diagnoses?
+
+Yes, there exists significant differences in the multivariate means of blood profiles in patients falling in one of the eight categories. RBC_Count, Hemoglobin, and Hematocrit are the variables showing significant difference and the Normal category varies significantly from all of the other categories in all three variables. \## Using Inference for Multivariate Means
